@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catatan Keuangan Multi-Buku Dinamis v11</title>
+    <title>Catatan Keuangan Online Bersama v13</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -12,6 +12,7 @@
     <div class="max-w-4xl mx-auto">
         <div class="bg-blue-600 text-white p-6 rounded-t-xl shadow-md text-center">
             <h1 class="text-2xl font-bold">Pencatatan Keuangan Digital</h1>
+            <p class="text-xs opacity-80 mt-1">☁️ Terhubung Cloud Database | Sinkron Otomatis Antar-HP</p>
             
             <div class="mt-3 max-w-xs mx-auto">
                 <label class="block text-xs font-semibold opacity-90 mb-1 text-center">BUKU AKTIF SAAT INI:</label>
@@ -19,31 +20,27 @@
                     </select>
             </div>
 
-            <button type="button" id="btnKelolaKategori" class="mt-4 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold py-1.5 px-4 rounded-full transition shadow-inner">
-                ⚙️ Kelola / Edit Nama Kategori
-            </button>
+            <div class="flex justify-center gap-2 mt-4 flex-wrap">
+                <button type="button" id="btnKelolaKategori" class="bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold py-1.5 px-4 rounded-full transition shadow-inner">
+                    ⚙️ Kelola / Edit Nama Kategori
+                </button>
+            </div>
         </div>
 
-        <div id="modalKategori" class="hidden bg-amber-50 p-6 border-b border-amber-200 shadow-md">
-            <h2 class="text-md font-bold text-amber-900 mb-2">⚙️ Pengaturan Kategori Buku</h2>
-            <p class="text-xs text-amber-700 mb-4">Anda bisa menambah, mengedit, atau menghapus kategori pembukuan Anda di bawah ini (Maksimal tak terbatas).</p>
-            
+        <div id="modalKategori" class="hidden bg-gray-50 p-6 border-b border-gray-200 shadow-md">
+            <h2 class="text-md font-bold text-gray-900 mb-2">⚙️ Pengaturan Kategori Buku</h2>
             <div class="flex gap-2 mb-4">
                 <input type="hidden" id="editKategoriId" value="-1">
-                <input type="text" id="inputNamaKategori" placeholder="Ketik nama kategori baru..." class="flex-1 p-2 border border-amber-300 rounded-md bg-white text-sm outline-none">
-                <button type="button" id="btnSimpanKategori" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 rounded-md transition">
-                    + Tambah
+                <input type="text" id="inputNamaKategori" placeholder="Ketik nama kategori baru..." class="flex-1 p-2 border border-gray-300 rounded-md bg-white text-sm outline-none">
+                <button type="button" id="btnSimpanKategori" class="bg-gray-600 hover:bg-gray-700 text-white font-bold text-xs px-4 rounded-md transition">
+                    Simpan
                 </button>
             </div>
-
-            <div class="bg-white rounded-md border border-amber-200 max-h-40 overflow-y-auto text-sm">
-                <ul id="listKategori" class="divide-y divide-gray-100">
-                    </ul>
+            <div class="bg-white rounded-md border border-gray-200 max-h-40 overflow-y-auto text-sm">
+                <ul id="listKategori" class="divide-y divide-gray-100"></ul>
             </div>
             <div class="flex justify-end mt-3">
-                <button type="button" id="btnTutupKategori" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-1.5 px-4 rounded-md transition">
-                    Tutup Pengaturan
-                </button>
+                <button type="button" id="btnTutupKategori" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-1.5 px-4 rounded-md transition">Tutup</button>
             </div>
         </div>
 
@@ -97,29 +94,25 @@
                 </thead>
                 <tbody id="transactionList" class="divide-y divide-gray-100 text-sm text-gray-600"></tbody>
             </table>
-            <div id="emptyState" class="p-8 text-center text-gray-400">
-                Belum ada transaksi di buku ini.
-            </div>
+            <div id="loadingState" class="p-8 text-center text-blue-500 font-semibold">Menghubungkan ke Cloud database...</div>
+            <div id="emptyState" class="p-8 text-center text-gray-400 hidden">Belum ada transaksi di buku ini.</div>
         </div>
     </div>
 
     <script>
-        // KATEGORI DEFAULT KETIKA PERTAMA KALI WEB DIBUKA
-        const kategoriAwal = [
-            { id: "kat_1", nama: "Keuangan Pribadi" },
-            { id: "kat_2", nama: "Komunitas Gym" },
-            { id: "kat_3", nama: "Bisnis / Toko" },
-            { id: "kat_4", nama: "Tabungan / Investasi" },
-            { id: "kat_5", nama: "Dana Darurat" }
-        ];
+        // ================================================================
+        // MASUKKAN LINK URL FIREBASE REALTIME DATABASE ANDA DI BAWAH INI:
+        // ================================================================
+        const URL_DATABASE_CLOUD = "https://catatan-keuangan-a7084-default-rtdb.firebaseio.com/";
+        
+        // Memastikan format URL diakhiri dengan tanda garing (/)
+        const baseCloudUrl = URL_DATABASE_CLOUD.endsWith('/') ? URL_DATABASE_CLOUD : URL_DATABASE_CLOUD + '/';
 
-        let listDaftarKategori = JSON.parse(localStorage.getItem('keuangan_master_kategori')) || kategoriAwal;
-        let kategoriTerpilih = localStorage.getItem('keuangan_kategori_aktif') || listDaftarKategori[0].id;
-
+        let listDaftarKategori = [];
+        let kategoriTerpilih = "";
         let transaksiData = [];
         let aksiTerbuka = false;
 
-        // Elemen HTML
         const selectorBuku = document.getElementById('pilihanBuku');
         const modalKategori = document.getElementById('modalKategori');
         const btnKelolaKategori = document.getElementById('btnKelolaKategori');
@@ -132,17 +125,50 @@
         const form = document.getElementById('financeForm');
         const transactionList = document.getElementById('transactionList');
         const emptyState = document.getElementById('emptyState');
+        const loadingState = document.getElementById('loadingState');
         const editIndexInput = document.getElementById('editIndex');
         const btnSubmit = document.getElementById('btnSubmit');
         const btnDownload = document.getElementById('btnDownload');
         const textTombolExcel = document.getElementById('textTombolExcel');
-        
-        const toggleAksiBtn = document.getElementById('toggleAksiBtn');
         const thAksi = document.getElementById('thAksi');
-        const lockIcon = document.getElementById('lockIcon');
-        const lockText = document.getElementById('lockText');
+        const toggleAksiBtn = document.getElementById('toggleAksiBtn');
 
-        // Fungsi memperbarui isi Dropdown Pilihan Buku sesuai daftar kategori terbaru
+        // Fungsi sinkronisasi membaca MASTER KATEGORI dari cloud secara realtime
+        async function muatKategoriDariCloud() {
+            try {
+                const respon = await fetch(`${baseCloudUrl}master_kategori.json`);
+                const data = await respon.json();
+                
+                if (data && data.length > 0) {
+                    listDaftarKategori = data;
+                } else {
+                    // Jika database cloud masih kosong, buatkan data awal default
+                    listDaftarKategori = [
+                        { id: "kat_1", nama: "Keuangan Pribadi" },
+                        { id: "kat_2", nama: "Komunitas Gym" },
+                        { id: "kat_3", nama: "Bisnis / Toko" },
+                        { id: "kat_4", nama: "Tabungan / Investasi" },
+                        { id: "kat_5", nama: "Dana Darurat" }
+                    ];
+                    await kirimKategoriKeCloud();
+                }
+                
+                if (!kategoriTerpilih) kategoriTerpilih = listDaftarKategori[0].id;
+                renderDropdownKategori();
+                await muatTransaksiDariCloud();
+            } catch (e) {
+                console.error("Gagal terhubung ke Cloud: ", e);
+                alert("Koneksi internet bermasalah atau URL database salah.");
+            }
+        }
+
+        async function kirimKategoriKeCloud() {
+            await fetch(`${baseCloudUrl}master_kategori.json`, {
+                method: 'PUT',
+                body: JSON.stringify(listDaftarKategori)
+            });
+        }
+
         function renderDropdownKategori() {
             selectorBuku.innerHTML = '';
             listDaftarKategori.forEach(kat => {
@@ -152,18 +178,41 @@
                 if(kat.id === kategoriTerpilih) opt.selected = true;
                 selectorBuku.appendChild(opt);
             });
-            
-            // Perbarui teks tombol excel sesuai nama kategori terpilih
-            const katAktif = listDaftarKategori.find(k => k.id === kategoriTerpilih) || listDaftarKategori[0];
+            const katAktif = listDaftarKategori.find(k => k.id === kategoriTerpilih);
             textTombolExcel.innerText = katAktif ? katAktif.nama : "Buku";
         }
 
-        // Fungsi memuat data transaksi dari database lokal berdasarkan kategori terpilih
-        function muatDataTransaksi() {
-            transaksiData = JSON.parse(localStorage.getItem('keuangan_data_' + kategoriTerpilih)) || [];
+        // Fungsi sinkronisasi membaca DATA TRANSAKSI dari cloud secara realtime
+        async function muatTransaksiDariCloud() {
+            loadingState.className = 'p-8 text-center text-blue-500 font-semibold';
+            emptyState.className = 'hidden';
+            transactionList.innerHTML = '';
+            
+            try {
+                const respon = await fetch(`${baseCloudUrl}data_transaksi/${kategoriTerpilih}.json`);
+                const data = await respon.json();
+                transaksiData = data || [];
+                renderTable();
+            } catch(e) {
+                loadingState.className = 'hidden';
+                alert("Gagal mengunduh data transaksi dari cloud.");
+            }
         }
 
-        // Fungsi Kelola Tampilan Kategori di Panel Pengaturan
+        async function simpanTransaksiKeCloud() {
+            let saldoRunning = 0;
+            transaksiData.forEach(item => {
+                saldoRunning = saldoRunning + item.masuk - item.keluar;
+                item.saldo = saldoRunning;
+            });
+
+            await fetch(`${baseCloudUrl}data_transaksi/${kategoriTerpilih}.json`, {
+                method: 'PUT',
+                body: JSON.stringify(transaksiData)
+            });
+            renderTable();
+        }
+
         function renderPanelKategori() {
             listKategoriUl.innerHTML = '';
             listDaftarKategori.forEach(kat => {
@@ -172,108 +221,70 @@
                 li.innerHTML = `
                     <span class="font-medium text-gray-700">${kat.nama}</span>
                     <div class="flex gap-1.5">
-                        <button onclick="pemicuEditKategori('${kat.id}')" class="bg-blue-500 text-white text-xs py-1 px-2.5 rounded hover:bg-blue-600">Edit Nama</button>
-                        <button onclick="hapusKategori('${kat.id}')" class="bg-red-500 text-white text-xs py-1 px-2.5 rounded hover:bg-red-600">Hapus</button>
+                        <button onclick="pemicuEditKategori('${kat.id}')" class="bg-blue-500 text-white text-xs py-1 px-2.5 rounded">Edit</button>
+                        <button onclick="hapusKategori('${kat.id}')" class="bg-red-500 text-white text-xs py-1 px-2.5 rounded">Hapus</button>
                     </div>
                 `;
                 listKategoriUl.appendChild(li);
             });
-            localStorage.setItem('keuangan_master_kategori', JSON.stringify(listDaftarKategori));
         }
 
-        // Event listener saat buku catatan diganti
-        selectorBuku.addEventListener('change', function() {
+        selectorBuku.addEventListener('change', async function() {
             kategoriTerpilih = selectorBuku.value;
-            localStorage.setItem('keuangan_kategori_aktif', kategoriTerpilih);
-            
             const katAktif = listDaftarKategori.find(k => k.id === kategoriTerpilih);
             textTombolExcel.innerText = katAktif ? katAktif.nama : "Buku";
-
             editIndexInput.value = "-1";
             btnSubmit.innerText = "+ Tambah Transaksi";
-            btnSubmit.className = "bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition text-sm";
-
-            muatDataTransaksi();
-            renderTable();
+            await muatTransaksiDariCloud();
         });
 
-        // Toggle Buka/Tutup Menu Pengaturan Kategori
         btnKelolaKategori.addEventListener('click', () => { modalKategori.classList.toggle('hidden'); renderPanelKategori(); });
         btnTutupKategori.addEventListener('click', () => modalKategori.classList.add('hidden'));
 
-        // Fitur Tambah / Edit Kategori
-        btnSimpanKategori.addEventListener('click', function() {
+        btnSimpanKategori.addEventListener('click', async function() {
             const namaInput = inputNamaKategori.value.trim();
             if(!namaInput) return;
-
             const idKat = editKategoriId.value;
-
             if(idKat === "-1") {
-                // Tambah baru
                 const idBaru = 'kat_' + Date.now();
                 listDaftarKategori.push({ id: idBaru, nama: namaInput });
             } else {
-                // Edit Nama yang sudah ada
                 const index = listDaftarKategori.findIndex(k => k.id === idKat);
                 if(index !== -1) listDaftarKategori[index].nama = namaInput;
-                
                 editKategoriId.value = "-1";
-                btnSimpanKategori.innerText = "+ Tambah";
-                btnSimpanKategori.className = "bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 rounded-md transition";
+                btnSimpanKategori.innerText = "Simpan";
             }
-
             inputNamaKategori.value = '';
+            await kirimKategoriKeCloud();
             renderPanelKategori();
             renderDropdownKategori();
         });
 
         window.pemicuEditKategori = function(id) {
             const kat = listDaftarKategori.find(k => k.id === id);
-            if(kat) {
-                inputNamaKategori.value = kat.nama;
-                editKategoriId.value = id;
-                btnSimpanKategori.innerText = "💾 Simpan";
-                btnSimpanKategori.className = "bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 rounded-md transition";
-            }
+            if(kat) { inputNamaKategori.value = kat.nama; editKategoriId.value = id; btnSimpanKategori.innerText = "💾 Simpan"; }
         }
 
         window.hapusKategori = function(id) {
-            if(listDaftarKategori.length <= 1) {
-                alert("Harus ada minimal 1 kategori pembukuan tersisa!");
-                return;
-            }
-            if(confirm("PERINGATAN: Menghapus kategori ini juga akan menghapus seluruh catatan transaksi di dalamnya secara permanen. Lanjutkan?")) {
+            if(listDaftarKategori.length <= 1) { alert("Harus ada minimal 1 kategori!"); return; }
+            if(confirm("Hapus kategori dari cloud?")) {
                 listDaftarKategori = listDaftarKategori.filter(k => k.id !== id);
-                localStorage.removeItem('keuangan_data_' + id);
-                
-                // Jika kategori yang dihapus kebetulan sedang dibuka, pindahkan ke kategori pertama yang tersisa
-                if(kategoriTerpilih === id) {
-                    kategoriTerpilih = listDaftarKategori[0].id;
-                    localStorage.setItem('keuangan_kategori_aktif', kategoriTerpilih);
-                }
-                
-                renderPanelKategori();
-                renderDropdownKategori();
-                muatDataTransaksi();
-                renderTable();
+                fetch(`${baseCloudUrl}data_transaksi/${id}.json`, { method: 'DELETE' });
+                if(kategoriTerpilih === id) { kategoriTerpilih = listDaftarKategori[0].id; }
+                kirimKategoriKeCloud().then(() => {
+                    renderPanelKategori(); renderDropdownKategori(); muatTransaksiDariCloud();
+                });
             }
         }
 
-        // ==========================================
-        // MANAJEMEN INPUT TRANSAKSI (Sama Seperti Versi Sebelumnya)
-        // ==========================================
         function setTanggalHariIni() {
             const hariIni = new Date();
-            const tahun = hariIni.getFullYear();
-            const bulan = String(hariIni.getMonth() + 1).padStart(2, '0');
-            const tanggal = String(hariIni.getDate()).padStart(2, '0');
-            document.getElementById('tanggal').value = `${tahun}-${bulan}-${tanggal}`;
+            document.getElementById('tanggal').value = `${hariIni.getFullYear()}-${String(hariIni.getMonth() + 1).padStart(2, '0')}-${String(hariIni.getDate()).padStart(2, '0')}`;
         }
 
         function ubahKeTeksTanggal(stringTanggal) {
             if (!stringTanggal) return "-";
-            const opsiTgl = { day: '2-digit', month: 'long', year: 'numeric' };
-            return new Date(stringTanggal).toLocaleDateString('id-ID', opsiTgl);
+            return new Date(stringTanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
         }
 
         function parseTanggalLokal(stringTanggal) {
@@ -286,59 +297,29 @@
             return "Rp " + Number(angka).toLocaleString('id-ID');
         }
 
-        function hitungUlangSaldo() {
-            let saldoRunning = 0;
-            transaksiData.forEach(item => {
-                saldoRunning = saldoRunning + item.masuk - item.keluar;
-                item.saldo = saldoRunning;
-            });
-            localStorage.setItem('keuangan_data_' + kategoriTerpilih, JSON.stringify(transaksiData));
-        }
-
         toggleAksiBtn.addEventListener('click', function() {
             if (!aksiTerbuka) {
-                const inputPassword = prompt("Masukkan password untuk membuka menu aksi (Edit/Hapus):");
-                if (inputPassword === "234") {
-                    aksiTerbuka = true;
-                    thAksi.classList.remove('hidden');
-                    lockIcon.innerText = "🔓";
-                    lockText.innerText = "Sembunyikan/Kunci Aksi";
-                    toggleAksiBtn.className = "bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1.5 px-4 rounded-full text-xs transition flex items-center gap-1.5 shadow-sm";
-                } else if (inputPassword !== null) {
-                    alert("Password Salah!");
-                }
+                if (prompt("Masukkan password:") === "234") { aksiTerbuka = true; thAksi.classList.remove('hidden'); renderTable(); }
             } else {
-                aksiTerbuka = false;
-                thAksi.classList.add('hidden');
-                lockIcon.innerText = "🔒";
-                lockText.innerText = "Buka Kunci Menu Aksi";
-                toggleAksiBtn.className = "bg-gray-700 hover:bg-gray-800 text-white font-semibold py-1.5 px-4 rounded-full text-xs transition flex items-center gap-1.5 shadow-sm";
+                aksiTerbuka = false; thAksi.classList.add('hidden'); renderTable();
             }
-            renderTable();
         });
 
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
+            loadingState.className = 'p-8 text-center text-blue-500 font-semibold';
             const idx = parseInt(editIndexInput.value);
-            const tanggalVal = document.getElementById('tanggal').value;
-            const keteranganVal = document.getElementById('keterangan').value;
-            const masukVal = Number(document.getElementById('masuk').value) || 0;
-            const keluarVal = Number(document.getElementById('keluar').value) || 0;
+            const data = { 
+                tanggal: document.getElementById('tanggal').value, 
+                keterangan: document.getElementById('keterangan').value, 
+                masuk: Number(document.getElementById('masuk').value) || 0, 
+                keluar: Number(document.getElementById('keluar').value) || 0, 
+                saldo: 0 
+            };
 
-            const data = { tanggal: tanggalVal, keterangan: keteranganVal, masuk: masukVal, keluar: keluarVal, saldo: 0 };
+            if (idx === -1) { transaksiData.push(data); } else { transaksiData[idx] = data; editIndexInput.value = "-1"; btnSubmit.innerText = "+ Tambah Transaksi"; }
 
-            if (idx === -1) {
-                transaksiData.push(data);
-            } else {
-                transaksiData[idx] = data;
-                editIndexInput.value = "-1";
-                btnSubmit.innerText = "+ Tambah Transaksi";
-                btnSubmit.className = "bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition text-sm";
-            }
-
-            hitungUlangSaldo();
-            renderTable();
-
+            await simpanTransaksiKeCloud();
             document.getElementById('keterangan').value = '';
             document.getElementById('masuk').value = '';
             document.getElementById('keluar').value = '';
@@ -346,17 +327,17 @@
         });
 
         function renderTable() {
+            loadingState.className = 'hidden';
             if (transaksiData.length > 0) { emptyState.className = 'hidden'; } else { emptyState.className = 'p-8 text-center text-gray-400'; }
             transactionList.innerHTML = '';
 
             transaksiData.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = "hover:bg-gray-50 transition";
-                
                 let tdAksiHtml = aksiTerbuka ? `
                     <td class="p-4 border-b border-gray-200 text-center flex justify-center gap-2">
-                        <button onclick="editData(${index})" class="bg-amber-500 hover:bg-amber-600 text-white text-xs py-1 px-3 rounded shadow-sm">Edit</button>
-                        <button onclick="hapusData(${index})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded shadow-sm">Hapus</button>
+                        <button onclick="editData(${index})" class="bg-amber-500 text-white text-xs py-1 px-3 rounded">Edit</button>
+                        <button onclick="hapusData(${index})" class="bg-red-500 text-white text-xs py-1 px-3 rounded">Hapus</button>
                     </td>
                 ` : '';
 
@@ -372,69 +353,44 @@
             });
         }
 
-        window.hapusData = function(index) {
-            if (confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
-                transaksiData.splice(index, 1);
-                hitungUlangSaldo();
-                renderTable();
-            }
+        window.hapusData = async function(index) { 
+            if (confirm("Hapus transaksi?")) { 
+                loadingState.className = 'p-8 text-center text-blue-500 font-semibold';
+                transaksiData.splice(index, 1); 
+                await simpanTransaksiKeCloud(); 
+            } 
         }
-
+        
         window.editData = function(index) {
             const item = transaksiData[index];
             document.getElementById('tanggal').value = item.tanggal;
             document.getElementById('keterangan').value = item.keterangan;
             document.getElementById('masuk').value = item.masuk;
             document.getElementById('keluar').value = item.keluar;
-            editIndexInput.value = index;
-            btnSubmit.innerText = "💾 Simpan Perubahan";
-            btnSubmit.className = "bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-md transition text-sm";
+            editIndexInput.value = index; btnSubmit.innerText = "💾 Simpan Perubahan";
         }
 
         btnDownload.addEventListener('click', function() {
-            if (transaksiData.length === 0) { alert("Belum ada data untuk di-download."); return; }
-
+            if (transaksiData.length === 0) { alert("Belum ada data."); return; }
             const excelRows = transaksiData.map(item => {
-                return {
-                    "Tanggal": ubahKeTeksTanggal(parseTanggalLokal(item.tanggal)),
-                    "Keterangan": item.keterangan,
-                    "Uang Masuk": item.masuk,
-                    "Uang Keluar": item.keluar,
-                    "Sisa Saldo": item.saldo
-                }
+                return { "Tanggal": ubahKeTeksTanggal(parseTanggalLokal(item.tanggal)), "Keterangan": item.keterangan, "Uang Masuk": item.masuk, "Uang Keluar": item.keluar, "Sisa Saldo": item.saldo }
             });
-
             const worksheet = XLSX.utils.json_to_sheet(excelRows);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Keuangan");
-            
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
-            
-            function s2ab(s) {
-                const buf = new ArrayBuffer(s.length);
-                const view = new Uint8Array(buf);
-                for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
-                return buf;
-            }
-            
+            function s2ab(s) { const buf = new ArrayBuffer(s.length); const view = new Uint8Array(buf); for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; return buf; }
             const dataBlob = new Blob([s2ab(excelBuffer)], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
             const linkDownload = document.createElement("a");
             linkDownload.href = URL.createObjectURL(dataBlob);
-            
             const katAktif = listDaftarKategori.find(k => k.id === kategoriTerpilih);
-            const namaFileSederhana = katAktif ? katAktif.nama.replace(/[^a-zA-Z0-9]/g, "_") : "Laporan";
-            linkDownload.download = `Laporan_${namaFileSederhana}.xlsx`;
-            
-            document.body.appendChild(linkDownload);
-            linkDownload.click();
-            document.body.removeChild(linkDownload);
+            linkDownload.download = `Laporan_${katAktif ? katAktif.nama.replace(/[^a-zA-Z0-9]/g, "_") : "Laporan"}.xlsx`;
+            document.body.appendChild(linkDownload); linkDownload.click(); document.body.removeChild(linkDownload);
         });
 
-        // MENJALANKAN APLIKASI PERTAMA KALI
-        renderDropdownKategori();
-        muatDataTransaksi();
+        // MENJALANKAN APLIKASI
         setTanggalHariIni();
-        renderTable();
+        muatKategoriDariCloud();
     </script>
 </body>
 </html>
