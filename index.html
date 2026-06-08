@@ -6,10 +6,25 @@
     <title>Catatan Keuangan Online Bersama v13</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* Menyembunyikan seluruh isi halaman sebelum password benar dimasukkan */
+        #kontenUtama { display: none; }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans min-h-screen py-6 px-4">
 
-    <div class="max-w-4xl mx-auto">
+    <script>
+        // Ubah "234" dengan password pembuka halaman yang Anda inginkan
+        const PASSWORD_HALAMAN_WEB = "234"; 
+
+        const inputUser = prompt("Aplikasi Kas Terkunci.\nMasukkan Password untuk Membuka Halaman:");
+        if (inputUser !== PASSWORD_HALAMAN_WEB) {
+            alert("Password Salah! Anda tidak diizinkan melihat halaman ini.");
+            document.body.innerHTML = "<div style='text-align:center; margin-top:100px; font-family:sans-serif; color:red;'><h2>Akses Ditolak: Halaman Dikunci.</h2><p>Silakan muat ulang (refresh) halaman dan masukkan password yang benar.</p></div>";
+        }
+    </script>
+
+    <div id="kontenUtama" class="max-w-4xl mx-auto">
         <div class="bg-blue-600 text-white p-6 rounded-t-xl shadow-md text-center">
             <h1 class="text-2xl font-bold">Pencatatan Keuangan Digital</h1>
             <p class="text-xs opacity-80 mt-1"> Pin Aksi : 234 </p>
@@ -40,7 +55,7 @@
                 <ul id="listKategori" class="divide-y divide-gray-100"></ul>
             </div>
             <div class="flex justify-end mt-3">
-                <button type="button" id="btnTutupKategori" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-1.5 px-4 rounded-md transition">Tutup</button>
+                <button type="button" id="btnTutupKategori" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-1.5 px-4 rounded-full transition">Tutup</button>
             </div>
         </div>
 
@@ -100,12 +115,12 @@
     </div>
 
     <script>
-        // ================================================================
-        // MASUKKAN LINK URL FIREBASE REALTIME DATABASE ANDA DI BAWAH INI:
-        // ================================================================
+        // Tampilkan halaman jika lolos pengecekan password di atas
+        if (typeof inputUser !== 'undefined' && inputUser === PASSWORD_HALAMAN_WEB) {
+            document.getElementById('kontenUtama').style.display = 'block';
+        }
+
         const URL_DATABASE_CLOUD = "https://catatan-keuangan-a7084-default-rtdb.firebaseio.com/";
-        
-        // Memastikan format URL diakhiri dengan tanda garing (/)
         const baseCloudUrl = URL_DATABASE_CLOUD.endsWith('/') ? URL_DATABASE_CLOUD : URL_DATABASE_CLOUD + '/';
 
         let listDaftarKategori = [];
@@ -133,7 +148,6 @@
         const thAksi = document.getElementById('thAksi');
         const toggleAksiBtn = document.getElementById('toggleAksiBtn');
 
-        // Fungsi sinkronisasi membaca MASTER KATEGORI dari cloud secara realtime
         async function muatKategoriDariCloud() {
             try {
                 const respon = await fetch(`${baseCloudUrl}master_kategori.json`);
@@ -142,7 +156,6 @@
                 if (data && data.length > 0) {
                     listDaftarKategori = data;
                 } else {
-                    // Jika database cloud masih kosong, buatkan data awal default
                     listDaftarKategori = [
                         { id: "kat_1", nama: "Keuangan Pribadi" },
                         { id: "kat_2", nama: "Komunitas Gym" },
@@ -182,7 +195,6 @@
             textTombolExcel.innerText = katAktif ? katAktif.nama : "Buku";
         }
 
-        // Fungsi sinkronisasi membaca DATA TRANSAKSI dari cloud secara realtime
         async function muatTransaksiDariCloud() {
             loadingState.className = 'p-8 text-center text-blue-500 font-semibold';
             emptyState.className = 'hidden';
@@ -282,7 +294,6 @@
             document.getElementById('tanggal').value = `${hariIni.getFullYear()}-${String(hariIni.getMonth() + 1).padStart(2, '0')}-${String(hariIni.getDate()).padStart(2, '0')}`;
         }
 
-        // BAGIAN YANG DIUBAH: Ditambahkan opsi 'weekday' untuk menampilkan nama Hari
         function ubahKeTeksTanggal(stringTanggal) {
             if (!stringTanggal) return "-";
             return new Date(stringTanggal).toLocaleDateString('id-ID', { 
